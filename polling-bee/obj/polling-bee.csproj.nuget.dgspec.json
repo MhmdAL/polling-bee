@@ -1,23 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "S:\\Projects\\polling-bee\\polling-bee\\polling-bee.csproj": {}
+    "/home/mhmdal/Projects/polling-bee/polling-bee/polling-bee.csproj": {}
   },
   "projects": {
-    "S:\\Projects\\polling-bee\\polling-bee\\polling-bee.csproj": {
+    "/home/mhmdal/Projects/polling-bee/polling-bee/polling-bee.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "S:\\Projects\\polling-bee\\polling-bee\\polling-bee.csproj",
+        "projectUniqueName": "/home/mhmdal/Projects/polling-bee/polling-bee/polling-bee.csproj",
         "projectName": "polling-bee",
-        "projectPath": "S:\\Projects\\polling-bee\\polling-bee\\polling-bee.csproj",
-        "packagesPath": "C:\\Users\\moham\\.nuget\\packages\\",
-        "outputPath": "S:\\Projects\\polling-bee\\polling-bee\\obj\\",
+        "projectPath": "/home/mhmdal/Projects/polling-bee/polling-bee/polling-bee.csproj",
+        "packagesPath": "/home/mhmdal/.nuget/packages/",
+        "outputPath": "/home/mhmdal/Projects/polling-bee/polling-bee/obj/",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
-        ],
         "configFilePaths": [
-          "C:\\Users\\moham\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "/home/mhmdal/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
@@ -51,9 +48,17 @@
               "target": "Package",
               "version": "[9.0.4, )"
             },
-            "Microsoft.EntityFrameworkCore.InMemory": {
+            "Microsoft.EntityFrameworkCore": {
               "target": "Package",
               "version": "[9.0.4, )"
+            },
+            "Microsoft.EntityFrameworkCore.Design": {
+              "target": "Package",
+              "version": "[9.0.4, )"
+            },
+            "Npgsql.EntityFrameworkCore.PostgreSQL": {
+              "target": "Package",
+              "version": "[9.0.0, )"
             }
           },
           "imports": [
@@ -75,7 +80,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.203/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/9.0.203/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

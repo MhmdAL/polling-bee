@@ -6,156 +6,185 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddCors();
 
+// Configure Entity Framework with PostgreSQL
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseInMemoryDatabase("MyInMemoryDb"));
+    options.UseNpgsql(connectionString));
 
 var app = builder.Build();
 
 app.UseHttpsRedirection();
 app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
+// Initialize database and seed data if needed
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    // Only seed if empty
-    // if (!context.Polls.Any())
-    // {
-
-    context.PollOptions.AddRange(
-        new List<PollOption>() {
-            new PollOption {
-                Id = 1,
-                PollId = 1,
-                Name = "option1",
-                Votes = 0
-            },
-            new PollOption {
-                Id = 2,
-                PollId = 1,
-                Name = "option2",
-                Votes = 0
-            },
-
-            new PollOption {
-                Id = 3,
-                PollId = 2,
-                Name = "oooption1",
-                Votes = 0
-            },
-            new PollOption {
-                Id = 4,
-                PollId = 2,
-                Name = "oooption2",
-                Votes = 0
-            },
-            new PollOption {
-                Id = 5,
-                PollId = 2,
-                Name = "oooption1",
-                Votes = 0
-            },
-            new PollOption {
-                Id = 6,
-                PollId = 2,
-                Name = "oooption2",
-                Votes = 0
-            }
-        });
-
-    context.Polls.AddRange(
-        new Poll
+    
+    try
+    {
+        // Ensure database is created
+        await context.Database.EnsureCreatedAsync();
+        
+        // Check if polls already exist
+        if (!await context.Polls.AnyAsync())
         {
-            Id = 1,
-            Question = "What is your favorite color?",
-            MaxResponseOptions = 1
-        },
-        new Poll
-        {
-            Id = 2,
-            Question = "What is your favorite country?",
-            MaxResponseOptions = 2
+            // Seed initial polls
+            var polls = new List<Poll>
+            {
+                new Poll
+                {
+                    Question = "What is your favorite color?",
+                    MaxResponseOptions = 1,
+                    Options = new List<PollOption>
+                    {
+                        new PollOption { Name = "Red", Votes = 0 },
+                        new PollOption { Name = "Blue", Votes = 0 }
+                    }
+                },
+                new Poll
+                {
+                    Question = "What is your favorite country?",
+                    MaxResponseOptions = 2,
+                    Options = new List<PollOption>
+                    {
+                        new PollOption { Name = "USA", Votes = 0 },
+                        new PollOption { Name = "Canada", Votes = 0 },
+                        new PollOption { Name = "UK", Votes = 0 },
+                        new PollOption { Name = "Australia", Votes = 0 }
+                    }
+                }
+            };
+
+            context.Polls.AddRange(polls);
+            await context.SaveChangesAsync();
+
+            Console.WriteLine("Seeded initial data to PostgreSQL");
         }
-    );
-    context.SaveChanges();
-
-    Console.WriteLine("seeded stuff");
-    // }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Database initialization failed: {ex.Message}");
+        // Continue anyway - tables might already exist
+    }
 }
 
-app.MapPost("/createPoll", ([FromBody] Poll request, AppDbContext dbContext) =>
+
+
+
+
+app.MapPost("/createPoll", async ([FromBody] Poll request, AppDbContext dbContext) =>
 {
     var poll = new Poll
     {
         Question = request.Question,
         MaxResponseOptions = request.MaxResponseOptions,
-        Options = request.Options
+        Options = request.Options?.Select(o => new PollOption
+        {
+            Name = o.Name,
+            Votes = 0
+        }).ToList() ?? new List<PollOption>()
     };
 
     dbContext.Polls.Add(poll);
-
-    dbContext.SaveChanges();
+    await dbContext.SaveChangesAsync();
 
     return poll.Id;
 });
 
-app.MapGet("/getPoll/{pollId}/{userId}", (string userId, int pollId, AppDbContext dbContext) =>
+app.MapGet("/getPoll/{pollId}/{userId}", async (string userId, int pollId, AppDbContext dbContext) =>
 {
-    var poll = dbContext.Polls
-        .Include(x => x.Options)
-        .Include(x => x.Submissions)
-            .ThenInclude(x => x.PollSubmissionSelections)
-        .FirstOrDefault(x => x.Id == pollId);
+    var poll = await dbContext.Polls
+        .Include(p => p.Options)
+        .Include(p => p.Submissions)
+            .ThenInclude(s => s.PollSubmissionSelections)
+        .FirstOrDefaultAsync(p => p.Id == pollId);
+    
+    if (poll == null)
+    {
+        return new
+        {
+            AlreadySubmitted = false,
+            SelectedOptions = new List<int>(),
+            Poll = (Poll?)null
+        };
+    }
+
+    // Check if user already submitted
+    var userSubmission = poll.Submissions?.FirstOrDefault(s => s.UserId == userId);
+    var alreadySubmitted = userSubmission != null;
+
+    var selectedOptions = userSubmission?.PollSubmissionSelections?.Select(s => s.PollOptionId).ToList() ?? new List<int>();
 
     return new
     {
-        AlreadySubmitted = poll != null ? poll.Submissions?.FirstOrDefault(x => x.UserId == userId) != null : false,
-        SelectedOptions = poll.Submissions?.FirstOrDefault(x => x.UserId == userId)?.PollSubmissionSelections?.Select(x => x.PollOptionId) ?? new List<int>(),
-        Poll = poll ?? null
+        AlreadySubmitted = alreadySubmitted,
+        SelectedOptions = selectedOptions,
+        Poll = poll
     };
 });
 
-app.MapGet("/getPolls", (AppDbContext dbContext) =>
+app.MapGet("/getPolls", async (AppDbContext dbContext) =>
 {
-    var polls = dbContext.Polls
-        .Include(x => x.Options)
-        .Include(x => x.Submissions)
-        .ToList();
+    var polls = await dbContext.Polls
+        .Include(p => p.Options)
+        .Include(p => p.Submissions)
+        .ToListAsync();
 
     return polls;
 });
 
-app.MapPost("/submitPoll/{userId}", (string userId, [FromBody] SubmitPollRequest request, AppDbContext dbContext) =>
+app.MapPost("/submitPoll/{userId}", async (string userId, [FromBody] SubmitPollRequest request, AppDbContext dbContext) =>
 {
-    var poll = dbContext.Polls
-        .Include(x => x.Options)
-        .FirstOrDefault(x => x.Id == request.PollId);
-
-    var pollSubmission = new PollSubmission
+    // Check if user already submitted
+    var existingSubmission = await dbContext.PollSubmissions
+        .FirstOrDefaultAsync(s => s.UserId == userId && s.PollId == request.PollId);
+    
+    if (existingSubmission != null)
     {
-        PollId = poll.Id,
-        UserId = userId
-    };
-
-    var pollSubmissionSelections = new List<PollSubmissionSelection>();
-
-    foreach (var item in request.PollOptionIds)
-    {
-        poll.Options.FirstOrDefault(x => x.Id == item).Votes++;
-
-        pollSubmissionSelections.Add(new PollSubmissionSelection
-        {
-            PollOptionId = item,
-        });
+        return Results.BadRequest("User has already submitted for this poll");
     }
 
-    pollSubmission.PollSubmissionSelections = pollSubmissionSelections;
+    // Use transaction for data consistency
+    using var transaction = await dbContext.Database.BeginTransactionAsync();
+    
+    try
+    {
+        // Create poll submission
+        var pollSubmission = new PollSubmission
+        {
+            PollId = request.PollId,
+            UserId = userId,
+            PollSubmissionSelections = request.PollOptionIds.Select(optionId => new PollSubmissionSelection
+            {
+                PollOptionId = optionId
+            }).ToList()
+        };
 
-    dbContext.PollSubmissions.Add(pollSubmission);
+        dbContext.PollSubmissions.Add(pollSubmission);
 
-    dbContext.SaveChanges();
+        // Update vote counts for selected options
+        var optionsToUpdate = await dbContext.PollOptions
+            .Where(o => request.PollOptionIds.Contains(o.Id))
+            .ToListAsync();
 
-    return true;
+        foreach (var option in optionsToUpdate)
+        {
+            option.Votes++;
+        }
+
+        await dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return Results.Ok(true);
+    }
+    catch (Exception)
+    {
+        await transaction.RollbackAsync();
+        return Results.Problem("Failed to submit poll response");
+    }
 });
 
 app.Run();

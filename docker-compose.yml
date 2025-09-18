@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  polling-bee:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080;https://+:8081
+      - ASPNETCORE_HTTPS_PORT=8081
+      # Supabase configuration - set these in .env file or pass as environment variables
+      - Supabase__Url=${SUPABASE_URL}
+      - Supabase__Key=${SUPABASE_KEY}
+    volumes:
+      # Optional: mount a volume for HTTPS certificates in production
+      - ~/.aspnet/https:/https:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/getPolls"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
