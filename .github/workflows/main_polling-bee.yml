@@ -24,7 +24,7 @@ jobs:
           dotnet-version: '9.x'
 
       - name: CD
-        run: cd polling-bee
+        run: cd \polling-bee
 
       - name: Build with dotnet
         run: dotnet build --configuration Release
