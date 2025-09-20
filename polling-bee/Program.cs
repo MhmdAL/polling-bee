@@ -6,12 +6,23 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddCors();
 
+// Configure JSON options to handle circular references
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    options.SerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+});
+
 // Configure Entity Framework with PostgreSQL
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseNpgsql(connectionString, npgsqlOptions =>
+    {
+        npgsqlOptions.CommandTimeout(30); // 10 minutes
+        npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null);
+    }));
 
 var app = builder.Build();
 
@@ -38,22 +49,24 @@ using (var scope = app.Services.CreateScope())
                 {
                     Question = "What is your favorite color?",
                     MaxResponseOptions = 1,
+                    CreatedBy = "system",
                     Options = new List<PollOption>
                     {
-                        new PollOption { Name = "Red", Votes = 0 },
-                        new PollOption { Name = "Blue", Votes = 0 }
+                        new PollOption { Name = "Red" },
+                        new PollOption { Name = "Blue" }
                     }
                 },
                 new Poll
                 {
                     Question = "What is your favorite country?",
                     MaxResponseOptions = 2,
+                    CreatedBy = "system",
                     Options = new List<PollOption>
                     {
-                        new PollOption { Name = "USA", Votes = 0 },
-                        new PollOption { Name = "Canada", Votes = 0 },
-                        new PollOption { Name = "UK", Votes = 0 },
-                        new PollOption { Name = "Australia", Votes = 0 }
+                        new PollOption { Name = "USA" },
+                        new PollOption { Name = "Canada" },
+                        new PollOption { Name = "UK" },
+                        new PollOption { Name = "Australia" }
                     }
                 }
             };
@@ -81,10 +94,10 @@ app.MapPost("/createPoll", async ([FromBody] Poll request, AppDbContext dbContex
     {
         Question = request.Question,
         MaxResponseOptions = request.MaxResponseOptions,
+        CreatedBy = request.CreatedBy,
         Options = request.Options?.Select(o => new PollOption
         {
-            Name = o.Name,
-            Votes = 0
+            Name = o.Name
         }).ToList() ?? new List<PollOption>()
     };
 
@@ -126,11 +139,33 @@ app.MapGet("/getPoll/{pollId}/{userId}", async (string userId, int pollId, AppDb
     };
 });
 
-app.MapGet("/getPolls", async (AppDbContext dbContext) =>
+app.MapGet("/getPollResults/{pollId}", async (int pollId, AppDbContext dbContext) =>
+{
+    var poll = await dbContext.Polls
+        .Include(p => p.Options)
+        .Include(p => p.Submissions)
+            .ThenInclude(s => s.PollSubmissionSelections)
+        .FirstOrDefaultAsync(p => p.Id == pollId);
+    
+    if (poll == null)
+    {
+        return new { Poll = (Poll?)null, SubmissionCount = 0 };
+    }
+
+    return new
+    {
+        Poll = poll,
+        SubmissionCount = poll.SubmissionCount
+    };
+});
+
+
+app.MapGet("/getPolls/{createdBy}", async (string createdBy, AppDbContext dbContext) =>
 {
     var polls = await dbContext.Polls
         .Include(p => p.Options)
         .Include(p => p.Submissions)
+        .Where(x => x.CreatedBy == createdBy)
         .ToListAsync();
 
     return polls;
@@ -147,9 +182,6 @@ app.MapPost("/submitPoll/{userId}", async (string userId, [FromBody] SubmitPollR
         return Results.BadRequest("User has already submitted for this poll");
     }
 
-    // Use transaction for data consistency
-    using var transaction = await dbContext.Database.BeginTransactionAsync();
-    
     try
     {
         // Create poll submission
@@ -164,25 +196,13 @@ app.MapPost("/submitPoll/{userId}", async (string userId, [FromBody] SubmitPollR
         };
 
         dbContext.PollSubmissions.Add(pollSubmission);
-
-        // Update vote counts for selected options
-        var optionsToUpdate = await dbContext.PollOptions
-            .Where(o => request.PollOptionIds.Contains(o.Id))
-            .ToListAsync();
-
-        foreach (var option in optionsToUpdate)
-        {
-            option.Votes++;
-        }
-
         await dbContext.SaveChangesAsync();
-        await transaction.CommitAsync();
 
         return Results.Ok(true);
     }
-    catch (Exception)
+    catch (Exception ex)
     {
-        await transaction.RollbackAsync();
+        Console.WriteLine($"Error submitting poll: {ex.Message}");
         return Results.Problem("Failed to submit poll response");
     }
 });

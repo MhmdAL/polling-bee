@@ -58,10 +58,6 @@ public class AppDbContext : DbContext
             .Property(po => po.CreatedAt)
             .HasDefaultValueSql("NOW()");
 
-        modelBuilder.Entity<PollOption>()
-            .Property(po => po.Votes)
-            .HasDefaultValue(0);
-
         modelBuilder.Entity<PollSubmission>()
             .Property(ps => ps.CreatedAt)
             .HasDefaultValueSql("NOW()");
