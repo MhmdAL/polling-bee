@@ -25,10 +25,10 @@ services:
       - ASPNETCORE_URLS=http://+:8080;https://+:8081
       - ASPNETCORE_HTTPS_PORT=8081
       # Supabase configuration - set these in .env file or pass as environment variables
-      - DB_HOST: db
-      - DB_PORT: 5432
-      - DB_USER: postgres
-      - DB_PASSWORD: password
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/getPolls"]
