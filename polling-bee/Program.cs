@@ -17,86 +17,105 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 // If no connection string in config, build from environment variables
-if (string.IsNullOrEmpty(connectionString))
-{
-    var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
-    var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
-    var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "postgres";
-    var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "password";
+// if (string.IsNullOrEmpty(connectionString))
+// {
+//     var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
+//     var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
+//     var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "postgres";
+//     var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "password";
     
-    connectionString = $"Host={dbHost};Port={dbPort};Username={dbUser};Password={dbPassword}";
-}
+    connectionString = $"Host=pg;Port=5432;Database=postgres;Username=postgres;Password=password;SSL Mode=Disable;Timeout=30";
+// }
 
 if (string.IsNullOrEmpty(connectionString))
 {
     throw new InvalidOperationException("Database connection string could not be determined.");
 }
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+try
+{
+    builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString, npgsqlOptions =>
     {
         npgsqlOptions.CommandTimeout(600); // 10 minutes
         npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null);
     }));
 
+}
+catch (System.Exception ex)
+{
+    Console.WriteLine($"Database connection string could not be determined: {ex.Message}");
+    throw;
+}
+
 var app = builder.Build();
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
 // Initialize database and seed data if needed
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    
+
     try
     {
-        // Ensure database is created
-        await context.Database.EnsureCreatedAsync();
-        
-        // Check if polls already exist
-        if (!await context.Polls.AnyAsync())
-        {
-            // Seed initial polls
-            var polls = new List<Poll>
-            {
-                new Poll
-                {
-                    Question = "What is your favorite color?",
-                    MaxResponseOptions = 1,
-                    CreatedBy = "system",
-                    Options = new List<PollOption>
-                    {
-                        new PollOption { Name = "Red" },
-                        new PollOption { Name = "Blue" }
-                    }
-                },
-                new Poll
-                {
-                    Question = "What is your favorite country?",
-                    MaxResponseOptions = 2,
-                    CreatedBy = "system",
-                    Options = new List<PollOption>
-                    {
-                        new PollOption { Name = "USA" },
-                        new PollOption { Name = "Canada" },
-                        new PollOption { Name = "UK" },
-                        new PollOption { Name = "Australia" }
-                    }
-                }
-            };
-
-            context.Polls.AddRange(polls);
-            await context.SaveChangesAsync();
-
-            Console.WriteLine("Seeded initial data to PostgreSQL");
-        }
+        await context.Database.CanConnectAsync();
     }
-    catch (Exception ex)
+    catch (System.Exception ex)
     {
-        Console.WriteLine($"Database initialization failed: {ex.Message}");
-        // Continue anyway - tables might already exist
+        Console.WriteLine($"Database connection string could not be determined: {ex.Message}");
+        throw;
     }
+    
+    // try
+    // {
+    //     // Ensure database is created
+    //     await context.Database.EnsureCreatedAsync();
+        
+    //     // Check if polls already exist
+    //     if (!await context.Polls.AnyAsync())
+    //     {
+    //         // Seed initial polls
+    //         var polls = new List<Poll>
+    //         {
+    //             new Poll
+    //             {
+    //                 Question = "What is your favorite color?",
+    //                 MaxResponseOptions = 1,
+    //                 CreatedBy = "system",
+    //                 Options = new List<PollOption>
+    //                 {
+    //                     new PollOption { Name = "Red" },
+    //                     new PollOption { Name = "Blue" }
+    //                 }
+    //             },
+    //             new Poll
+    //             {
+    //                 Question = "What is your favorite country?",
+    //                 MaxResponseOptions = 2,
+    //                 CreatedBy = "system",
+    //                 Options = new List<PollOption>
+    //                 {
+    //                     new PollOption { Name = "USA" },
+    //                     new PollOption { Name = "Canada" },
+    //                     new PollOption { Name = "UK" },
+    //                     new PollOption { Name = "Australia" }
+    //                 }
+    //             }
+    //         };
+
+    //         context.Polls.AddRange(polls);
+    //         await context.SaveChangesAsync();
+
+    //         Console.WriteLine("Seeded initial data to PostgreSQL");
+    //     }
+    // }
+    // catch (Exception ex)
+    // {
+    //     Console.WriteLine($"Database initialization failed 2.0: {ex.Message}");
+    //     // Continue anyway - tables might already exist
+    // }
 }
 
 
