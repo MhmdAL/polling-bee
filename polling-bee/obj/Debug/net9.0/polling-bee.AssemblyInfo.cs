@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("polling-bee")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+51f10c6a5f26f0f13dfa0ef30e0ae49ba3692acf")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f4492da3cec529dc6de0b0c7c33bcb944328034d")]
 [assembly: System.Reflection.AssemblyProductAttribute("polling-bee")]
 [assembly: System.Reflection.AssemblyTitleAttribute("polling-bee")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

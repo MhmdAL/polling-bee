@@ -26,7 +26,6 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
-      - ASPNETCORE_HTTPS_PORT=8081
       # Database configuration
       - DB_HOST=pg
       - DB_PORT=5432
