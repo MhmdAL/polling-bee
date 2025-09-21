@@ -16,6 +16,7 @@ services:
     restart: unless-stopped
 
   polling-bee:
+    container_name: polling-bee
     build: 
       context: .
       dockerfile: Dockerfile
