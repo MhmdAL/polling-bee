@@ -14,13 +14,29 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 // Configure Entity Framework with PostgreSQL
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// If no connection string in config, build from environment variables
+if (string.IsNullOrEmpty(connectionString))
+{
+    var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
+    var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
+    var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "postgres";
+    var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "password";
+    var dbName = Environment.GetEnvironmentVariable("DB_NAME") ?? "postgres";
+    
+    connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
+}
+
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException("Database connection string could not be determined.");
+}
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString, npgsqlOptions =>
     {
-        npgsqlOptions.CommandTimeout(30); // 10 minutes
+        npgsqlOptions.CommandTimeout(600); // 10 minutes
         npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null);
     }));
 
