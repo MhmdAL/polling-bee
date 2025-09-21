@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  db:
+  pg:
     image: postgres:16
     ports:
       - "5432:5432"
@@ -28,11 +28,10 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - ASPNETCORE_HTTPS_PORT=8081
       # Database configuration
-      - DB_HOST=db
+      - DB_HOST=pg
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=password
-      - DB_NAME=postgres
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/getPolls/system"]

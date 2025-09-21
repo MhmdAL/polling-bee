@@ -23,9 +23,8 @@ if (string.IsNullOrEmpty(connectionString))
     var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
     var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "postgres";
     var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "password";
-    var dbName = Environment.GetEnvironmentVariable("DB_NAME") ?? "postgres";
     
-    connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
+    connectionString = $"Host={dbHost};Port={dbPort};Username={dbUser};Password={dbPassword}";
 }
 
 if (string.IsNullOrEmpty(connectionString))
