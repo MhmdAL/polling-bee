@@ -16,17 +16,6 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 // Configure Entity Framework with PostgreSQL
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-// If no connection string in config, build from environment variables
-// if (string.IsNullOrEmpty(connectionString))
-// {
-//     var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
-//     var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
-//     var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "postgres";
-//     var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "password";
-    
-    connectionString = $"Host=pg;Port=5432;Database=postgres;Username=postgres;Password=password;SSL Mode=Disable;Timeout=30";
-// }
-
 if (string.IsNullOrEmpty(connectionString))
 {
     throw new InvalidOperationException("Database connection string could not be determined.");
@@ -67,55 +56,6 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine($"Database connection string could not be determined: {ex.Message}");
         throw;
     }
-    
-    // try
-    // {
-    //     // Ensure database is created
-    //     await context.Database.EnsureCreatedAsync();
-        
-    //     // Check if polls already exist
-    //     if (!await context.Polls.AnyAsync())
-    //     {
-    //         // Seed initial polls
-    //         var polls = new List<Poll>
-    //         {
-    //             new Poll
-    //             {
-    //                 Question = "What is your favorite color?",
-    //                 MaxResponseOptions = 1,
-    //                 CreatedBy = "system",
-    //                 Options = new List<PollOption>
-    //                 {
-    //                     new PollOption { Name = "Red" },
-    //                     new PollOption { Name = "Blue" }
-    //                 }
-    //             },
-    //             new Poll
-    //             {
-    //                 Question = "What is your favorite country?",
-    //                 MaxResponseOptions = 2,
-    //                 CreatedBy = "system",
-    //                 Options = new List<PollOption>
-    //                 {
-    //                     new PollOption { Name = "USA" },
-    //                     new PollOption { Name = "Canada" },
-    //                     new PollOption { Name = "UK" },
-    //                     new PollOption { Name = "Australia" }
-    //                 }
-    //             }
-    //         };
-
-    //         context.Polls.AddRange(polls);
-    //         await context.SaveChangesAsync();
-
-    //         Console.WriteLine("Seeded initial data to PostgreSQL");
-    //     }
-    // }
-    // catch (Exception ex)
-    // {
-    //     Console.WriteLine($"Database initialization failed 2.0: {ex.Message}");
-    //     // Continue anyway - tables might already exist
-    // }
 }
 
 
